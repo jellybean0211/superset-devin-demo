@@ -1,0 +1,21 @@
+{
+  "name": "superset-devin-demo",
+  "version": "0.1.0",
+  "description": "Demo: Devin autonomously solves apache/superset#33884 and opens a PR to jellybean0211/superset",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "run": "tsx src/index.ts",
+    "run:dry": "tsx src/index.ts --dry-run",
+    "upload-knowledge": "tsx src/upload-knowledge.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "dotenv": "^16.4.5"
+  },
+  "devDependencies": {
+    "@types/node": "^22.5.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.6.0"
+  }
+}
