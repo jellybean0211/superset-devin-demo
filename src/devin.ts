@@ -106,7 +106,11 @@ export class DevinClient {
     for (const tag of params.tags ?? []) qs.append("tags", tag);
     for (const s of params.status ?? []) qs.append("status", s);
     if (params.first != null) qs.set("first", String(params.first));
-    if (params.created_after) qs.set("created_after", params.created_after);
+    if (params.created_after) {
+      // API expects unix-seconds integer, not ISO string
+      const secs = Math.floor(new Date(params.created_after).getTime() / 1000);
+      qs.set("created_after", String(secs));
+    }
     const query = qs.toString();
     return this.request<ListSessionsResponse>(
       this.orgPath(`/sessions${query ? `?${query}` : ""}`),

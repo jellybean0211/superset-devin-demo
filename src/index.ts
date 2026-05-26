@@ -22,12 +22,30 @@ async function writeGithubOutputs(outputs: Record<string, string>) {
 }
 
 async function main() {
+  const dryRun = process.argv.includes("--dry-run");
+
   const upstreamRepo = process.env.UPSTREAM_REPO ?? "apache/superset";
   const targetRepo = env("TARGET_REPO");
   const issueNumber = Number(env("ISSUE_NUMBER"));
   const issueTitle = env("ISSUE_TITLE");
   const issueBody = process.env.ISSUE_BODY ?? "";
   const issueUrl = env("ISSUE_URL");
+
+  if (dryRun) {
+    const prompt = buildGenericIssuePrompt({
+      upstreamRepo,
+      targetRepo,
+      issueNumber,
+      issueTitle,
+      issueBody,
+      issueUrl,
+    });
+    console.log("=== DRY RUN — prompt that would be sent to Devin ===\n");
+    console.log(prompt);
+    console.log("\n=== END ===");
+    console.log("\nNo Devin API calls were made. Remove --dry-run to spawn for real.");
+    return;
+  }
 
   const client = new DevinClient(
     env("DEVIN_API_KEY"),

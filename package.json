@@ -7,14 +7,16 @@
   "scripts": {
     "spawn": "tsx src/index.ts",
     "upload-knowledge": "tsx src/upload-knowledge.ts",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "docker:build": "docker build -t superset-devin-demo .",
+    "docker:spawn": "docker run --rm --env-file .env -e ISSUE_NUMBER -e ISSUE_TITLE -e ISSUE_BODY -e ISSUE_URL -e TARGET_REPO -e UPSTREAM_REPO superset-devin-demo"
   },
   "dependencies": {
-    "dotenv": "^16.4.5"
-  },
-  "devDependencies": {
-    "@types/node": "^22.5.0",
+    "dotenv": "^16.4.5",
     "tsx": "^4.19.0",
     "typescript": "^5.6.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.5.0"
   }
 }

@@ -1,0 +1,9 @@
+node_modules
+.env
+.env.local
+.git
+.github
+dist
+*.log
+knowledge
+README.md
