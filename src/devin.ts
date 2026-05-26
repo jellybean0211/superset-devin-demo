@@ -1,5 +1,3 @@
-import { setTimeout as sleep } from "node:timers/promises";
-
 export type SessionStatus =
   | "new"
   | "claimed"
@@ -8,6 +6,8 @@ export type SessionStatus =
   | "error"
   | "suspended"
   | "resuming";
+
+export const ACTIVE_STATUSES: SessionStatus[] = ["new", "claimed", "running", "resuming"];
 
 export interface CreateSessionInput {
   prompt: string;
@@ -20,30 +20,34 @@ export interface CreateSessionInput {
   bypass_approval?: boolean;
 }
 
-export interface CreateSessionResponse {
-  session_id: string;
-  url: string;
-  org_id: string;
-  status: SessionStatus;
-  status_detail?: string;
-}
-
-export interface PullRequestRef {
-  pr_url?: string;
-  pr_state?: string;
-}
-
-export interface SessionDetails {
+export interface SessionSummary {
   session_id: string;
   url: string;
   status: SessionStatus;
   status_detail?: string;
-  title?: string;
+  tags?: string[];
   created_at: string;
   updated_at: string;
-  pull_requests?: PullRequestRef[];
+  pull_requests?: Array<{ pr_url?: string; pr_state?: string }>;
   acus_consumed?: number;
+}
+
+export interface CreateSessionResponse extends SessionSummary {
+  org_id: string;
+}
+
+export interface ListSessionsParams {
   tags?: string[];
+  status?: SessionStatus[];
+  first?: number;
+  created_after?: string;
+}
+
+export interface ListSessionsResponse {
+  items: SessionSummary[];
+  end_cursor: string | null;
+  has_next_page: boolean;
+  total: number | null;
 }
 
 export interface CreateKnowledgeInput {
@@ -97,8 +101,16 @@ export class DevinClient {
     });
   }
 
-  getSession(sessionId: string): Promise<SessionDetails> {
-    return this.request<SessionDetails>(this.orgPath(`/sessions/${sessionId}`));
+  listSessions(params: ListSessionsParams = {}): Promise<ListSessionsResponse> {
+    const qs = new URLSearchParams();
+    for (const tag of params.tags ?? []) qs.append("tags", tag);
+    for (const s of params.status ?? []) qs.append("status", s);
+    if (params.first != null) qs.set("first", String(params.first));
+    if (params.created_after) qs.set("created_after", params.created_after);
+    const query = qs.toString();
+    return this.request<ListSessionsResponse>(
+      this.orgPath(`/sessions${query ? `?${query}` : ""}`),
+    );
   }
 
   createKnowledge(input: CreateKnowledgeInput): Promise<KnowledgeResponse> {
@@ -106,15 +118,5 @@ export class DevinClient {
       method: "POST",
       body: JSON.stringify(input),
     });
-  }
-
-  async *poll(sessionId: string, intervalMs = 30_000): AsyncGenerator<SessionDetails> {
-    const terminal: SessionStatus[] = ["exit", "error", "suspended"];
-    while (true) {
-      const details = await this.getSession(sessionId);
-      yield details;
-      if (terminal.includes(details.status)) return;
-      await sleep(intervalMs);
-    }
   }
 }

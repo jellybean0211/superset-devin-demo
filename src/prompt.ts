@@ -1,63 +1,83 @@
-export interface PromptVars {
+export interface GenericIssuePromptVars {
   upstreamRepo: string;
   targetRepo: string;
   issueNumber: number;
+  issueTitle: string;
+  issueBody: string;
+  issueUrl: string;
 }
 
-export function buildSupersetIssuePrompt({
+export function buildGenericIssuePrompt({
   upstreamRepo,
   targetRepo,
   issueNumber,
-}: PromptVars): string {
-  return `You are fixing apache/superset issue #${issueNumber}.
+  issueTitle,
+  issueBody,
+  issueUrl,
+}: GenericIssuePromptVars): string {
+  return `You are solving issue #${issueNumber} from ${upstreamRepo}.
 
-## Issue summary
-The \`/api/v1/dashboard\` endpoint returns \`owners\`, \`roles\`, and \`tags\` as arrays at runtime,
-but the generated OpenAPI spec at \`docs/static/resources/openapi.json\` declares them as bare
-\`$ref\` objects (single objects) instead of \`{ "type": "array", "items": { "$ref": ... } }\`.
-This breaks generated clients (e.g. NSwag).
+## Issue
+${issueUrl}
 
-## Root cause (confirmed in issue thread)
-In \`superset/dashboards/schemas.py\`, \`DashboardGetResponseSchema\` declares:
-  - \`owners\` and \`roles\` with \`fields.List(fields.Nested(...))\`
-  - \`tags\` with \`fields.Nested(TagSchema, many=True)\`
-The apispec generator mis-renders all three as single \`$ref\` objects in the get-list response.
+### Title (snapshot at trigger time — may be stale)
+${issueTitle}
+
+### Body (snapshot at trigger time — may be stale)
+${issueBody || "(no body provided)"}
 
 ## What you should do
-1. Clone \`https://github.com/${upstreamRepo}\` and check out main at the latest commit.
-2. Inspect \`superset/dashboards/schemas.py\` and confirm the field definitions on
-   \`DashboardGetResponseSchema\`. Normalize \`tags\` to the same
-   \`fields.List(fields.Nested(TagSchema))\` shape used by \`owners\`/\`roles\`.
-3. Regenerate the OpenAPI spec by running \`superset update-api-docs\` (or the equivalent
-   documented in \`docs/static/resources/\`). If the CLI requires a working DB/app context that
-   is hard to provision, instead patch the spec directly using the \`jq\` workaround from the
-   issue thread for \`owners\`, \`roles\`, and \`tags\` under
-   \`components.schemas["DashboardRestApi.get_list"].properties\`. Prefer regeneration; only
-   fall back to the jq patch if regeneration is infeasible. Hardcoding the patch IS acceptable
-   for this demo if needed.
-4. Verify by inspecting the regenerated \`docs/static/resources/openapi.json\` and confirming
-   each of those three properties is now \`{ "type": "array", "items": { "$ref": ... } }\`.
-5. Run any related unit tests under \`tests/unit_tests/dashboards/\` and
-   \`tests/integration_tests/dashboards/\` that touch the schema. Don't worry about the full
-   suite — just the dashboard schema tests.
-6. Push a branch to \`https://github.com/${targetRepo}\` (NOT the upstream apache repo) and
-   open a pull request against \`${targetRepo}\`'s default branch.
+1. **Fetch fresh state.** The title/body above are a snapshot from when the GH Action fired.
+   Before doing anything else, run:
+   \`\`\`
+   gh issue view ${issueNumber} --repo ${upstreamRepo} --json title,body,comments,state,labels
+   \`\`\`
+   Use the fresh content as your source of truth — including any new comments that may have
+   added context, repro steps, or root-cause analysis since the label was applied.
+
+2. **Acknowledge — but only if no ACK is already there.** Run:
+   \`\`\`
+   gh issue view ${issueNumber} --repo ${upstreamRepo} --json comments --jq '.comments[].body'
+   \`\`\`
+   If any existing comment starts with \`🤖 on it\`, SKIP the ACK step entirely (a previous
+   session already acknowledged). Otherwise post exactly one comment:
+   \`🤖 on it — analyzing this issue now. will update with a PR or findings when done.\`
+
+3. Clone \`https://github.com/${upstreamRepo}\` and check out the default branch at HEAD.
+
+4. Reproduce the bug or understand the feature request. Read the relevant code paths.
+
+5. Implement the smallest correct fix. Add or update tests where appropriate. If the issue
+   thread discusses root cause or a workaround (e.g. a \`jq\` patch, a one-line schema
+   change), use that as a starting point — hardcoding is acceptable when proper regeneration
+   is infeasible in the sandbox.
+
+6. Run tests relevant to your change (not the full suite).
+
+7. Push a branch to \`https://github.com/${targetRepo}\` (NOT the upstream repo) and open a
+   pull request against \`${targetRepo}\`'s default branch.
+
+8. **Completion comment.** Once the PR is open (or you concluded no fix is feasible), post
+   one final comment on ${issueUrl} with either:
+   - \`✅ PR opened: <pr_url>\` plus a one-line summary of the change, OR
+   - \`⚠️ Could not produce a PR. Reason: <short reason>.\`
+   Do not post more than these two comments (the ACK and the completion). No progress chatter
+   in between.
 
 ## PR requirements
-- Title: \`fix(api): correct OpenAPI schema for dashboard owners/roles/tags arrays (#${issueNumber})\`
+- Use a Conventional Commits title (e.g. \`fix(scope): ...\`, \`feat(scope): ...\`).
 - Body must include:
-  - Link back to https://github.com/${upstreamRepo}/issues/${issueNumber}
-  - One-paragraph root cause
-  - Before/after diff snippet of the OpenAPI properties
+  - Link to ${issueUrl}
+  - One-paragraph root cause / motivation
+  - Summary of the change
+  - How you verified it
   - A note that this PR is opened to \`${targetRepo}\` as a demo fork; the upstream fix would
-    target apache/superset.
+    target ${upstreamRepo}.
 - Keep the changeset minimal and focused. No drive-by formatting, no unrelated edits.
 
 ## Hard constraints
-- DO NOT push or open a PR to apache/superset. The PR target is \`${targetRepo}\` only.
+- DO NOT push or open a PR to ${upstreamRepo}. The PR target is \`${targetRepo}\` only.
 - DO NOT modify CI configuration, pre-commit hooks, or unrelated schemas.
-- If you get blocked on environment setup for >30 minutes, stop, leave a comment on the
-  session, and report what you tried.
-
-Report back with the PR URL when done.`;
+- If you get blocked on environment setup for >30 minutes, stop and post the completion
+  comment with the \`⚠️\` outcome.`;
 }

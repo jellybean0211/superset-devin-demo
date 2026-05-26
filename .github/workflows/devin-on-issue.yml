@@ -1,0 +1,46 @@
+name: Devin on labeled issue
+
+on:
+  issues:
+    # Edge case #4: pre-labeled issues. GitHub fires both `opened` and `labeled` when
+    # an issue is created with labels, but to be defensive we subscribe to both and
+    # rely on the API-level dedup guard (edge case #1) to suppress duplicate spawns.
+    types: [opened, labeled]
+
+# Edge case #5: fan-out. Serialize per-issue so rapid label toggling can't race to
+# spawn duplicate sessions before the API-level dedup check sees the first one.
+# Different issues remain parallel.
+concurrency:
+  group: devin-spawn-issue-${{ github.event.issue.number }}
+  cancel-in-progress: false
+
+jobs:
+  spawn-devin:
+    # Fires when:
+    #   - 'labeled' event with the 'devin' label, OR
+    #   - 'opened' event on an issue that already has the 'devin' label
+    if: >-
+      (github.event.action == 'labeled' && github.event.label.name == 'devin') ||
+      (github.event.action == 'opened' && contains(github.event.issue.labels.*.name, 'devin'))
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - run: npm ci
+
+      - name: Spawn Devin session
+        env:
+          DEVIN_API_KEY: ${{ secrets.DEVIN_API_KEY }}
+          DEVIN_ORG_ID: ${{ secrets.DEVIN_ORG_ID }}
+          TARGET_REPO: ${{ github.repository }}
+          UPSTREAM_REPO: apache/superset
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+          ISSUE_TITLE: ${{ github.event.issue.title }}
+          ISSUE_BODY: ${{ github.event.issue.body }}
+          ISSUE_URL: ${{ github.event.issue.html_url }}
+        run: npm run spawn
