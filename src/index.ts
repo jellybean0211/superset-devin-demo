@@ -18,7 +18,16 @@ async function writeGithubOutputs(outputs: Record<string, string>) {
   const lines = Object.entries(outputs)
     .map(([k, v]) => `${k}=${v.replace(/\r?\n/g, " ")}`)
     .join("\n");
-  await appendFile(outFile, lines + "\n");
+  try {
+    await appendFile(outFile, lines + "\n");
+  } catch (err) {
+    // GH Actions bind-mounts $GITHUB_OUTPUT into the container at /tmp/gh_output;
+    // recent runner versions own the file as uid=1001 with restrictive perms, so
+    // writing from the container's root user fails with EACCES. The outputs are
+    // informational (no downstream step in devin-on-issue.yml consumes them), so
+    // log and continue rather than failing a successful spawn.
+    console.warn(`note: could not write GITHUB_OUTPUT (${outFile}): ${(err as Error).message}`);
+  }
 }
 
 async function main() {
