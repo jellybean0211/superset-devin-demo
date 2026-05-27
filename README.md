@@ -51,6 +51,24 @@ docker run --rm \
   superset-devin-demo --dry-run
 ```
 
+## Simulate end-to-end with npm scripts
+
+Two helpers for running the flow locally against real issues, without the GH
+Action. Both require `gh` authenticated to read `apache/superset` and write
+`jellybean0211/superset`.
+
+```bash
+# 1. Clone an upstream issue into the fork.
+#    Add --label devin to trigger the fork's webhook workflow automatically.
+npm run clone-issue -- 33884
+npm run clone-issue -- 33884 --label devin
+
+# 2. Or skip the label and spawn Devin manually against a fork issue.
+#    Same code path as the GH Action (dedup check + ACU cap).
+npm run devin -- <issue-number>            # real session, needs DEVIN_* in .env
+npm run devin -- <issue-number> --dry-run  # print the prompt, no API calls
+```
+
 ## Run the workflow manually (real Devin session)
 
 This is the same code path the GH Action runs — useful for testing the
