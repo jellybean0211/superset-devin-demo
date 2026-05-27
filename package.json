@@ -5,10 +5,10 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "spawn": "tsx src/index.ts",
     "upload-knowledge": "tsx src/upload-knowledge.ts",
-    "clone-issue": "tsx src/clone-issue.ts",
-    "devin": "tsx src/run-devin.ts",
+    "devin:issues:clone": "tsx src/devin-issues-clone.ts",
+    "devin:issues:ls": "tsx src/devin-issues-ls.ts",
+    "devin:sessions:ls": "tsx src/devin-sessions-ls.ts",
     "typecheck": "tsc --noEmit",
     "docker:build": "docker build -t superset-devin-demo .",
     "docker:spawn": "docker run --rm --env-file .env -e ISSUE_NUMBER -e ISSUE_TITLE -e ISSUE_BODY -e ISSUE_URL -e TARGET_REPO -e UPSTREAM_REPO superset-devin-demo"

@@ -53,20 +53,40 @@ docker run --rm \
 
 ## Simulate end-to-end with npm scripts
 
-Two helpers for running the flow locally against real issues, without the GH
-Action. Both require `gh` authenticated to read `apache/superset` and write
-`jellybean0211/superset`.
+Helpers for running the flow locally against real issues, without the GH
+Action. `devin:issues:*` scripts need `gh` authenticated to read
+`apache/superset` and read/write `jellybean0211/superset`. `devin:sessions:*`
+and `devin` need `DEVIN_API_KEY` and `DEVIN_ORG_ID` in `.env`.
+
+> **npm flag-stripping note.** `npm run` consumes flags it owns (`--all`,
+> `--limit`, etc.) before they reach the script. The scripts accept bare
+> positional aliases — `all` means `--all`, a bare number means `--limit` — or
+> use the `--` separator (`npm run … -- --all --limit 50`).
 
 ```bash
-# 1. Clone an upstream issue into the fork.
-#    Add --label devin to trigger the fork's webhook workflow automatically.
-npm run clone-issue -- 33884
-npm run clone-issue -- 33884 --label devin
+# Clone an upstream issue into the fork (links back to the original).
+# Add --label devin to trigger the fork's webhook workflow automatically.
+npm run devin:issues:clone -- 33884
+npm run devin:issues:clone -- 33884 --label devin
 
-# 2. Or skip the label and spawn Devin manually against a fork issue.
-#    Same code path as the GH Action (dedup check + ACU cap).
-npm run devin -- <issue-number>            # real session, needs DEVIN_* in .env
-npm run devin -- <issue-number> --dry-run  # print the prompt, no API calls
+# List issues in the fork. Default: open only.
+npm run devin:issues:ls               # open issues, up to 20
+npm run devin:issues:ls all           # include closed
+npm run devin:issues:ls 5             # limit 5
+npm run devin:issues:ls all 50        # all states, limit 50
+
+# Spawn Devin manually against a fork issue: label it `devin` in the fork
+# (or use `npm run devin:issues:clone -- <upstream-#> --label devin`) and the
+# fork's GH Action takes over. For local/manual runs of the same code path,
+# use the Docker invocation below ("Run the workflow manually").
+
+# Inspect Devin sessions. Default: only `running` sessions for this project
+# (jellybean0211/superset — matched via tags, since the API doesn't return repos
+# on list responses). `all` removes both filters.
+npm run devin:sessions:ls             # running project sessions, up to 20
+npm run devin:sessions:ls all         # any status, org-wide
+npm run devin:sessions:ls 3           # limit 3
+npm run devin:sessions:ls all 3       # both
 ```
 
 ## Run the workflow manually (real Devin session)

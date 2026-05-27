@@ -41,8 +41,8 @@ function parseArgs(argv: string[]): { issueNumber: number; labels: string[] } {
 
   if (!issueNumber) {
     throw new Error(
-      "Usage: npm run clone-issue -- <issue-number> [--label <name>]...\n" +
-        "  Clones an issue from apache/superset to jellybean0211/superset.",
+      "Usage: npm run devin:issues:clone -- <issue-number> [--label <name>]...\n" +
+        `  Clones an issue from ${UPSTREAM} to ${TARGET}.`,
     );
   }
   return { issueNumber, labels };
@@ -65,12 +65,15 @@ async function main() {
   }
 
   const upstreamLabels = issue.labels.map((l) => l.name).filter(Boolean);
-  const header =
-    `> Cloned from [${UPSTREAM}#${issue.number}](${issue.html_url})` +
-    (issue.user ? ` (opened by @${issue.user.login})` : "") +
-    (upstreamLabels.length ? `\n> Upstream labels: ${upstreamLabels.join(", ")}` : "") +
-    "\n\n---\n\n";
-  const body = header + (issue.body ?? "_(no body)_");
+  // Bare reference (`owner/repo#N`) + URL ensures GitHub renders a cross-reference
+  // and creates a backlink on the upstream issue.
+  const headerLines = [
+    `**Upstream issue:** ${UPSTREAM}#${issue.number}`,
+    `**Link:** ${issue.html_url}`,
+  ];
+  if (issue.user) headerLines.push(`**Opened by:** @${issue.user.login}`);
+  if (upstreamLabels.length) headerLines.push(`**Upstream labels:** ${upstreamLabels.join(", ")}`);
+  const body = headerLines.join("\n") + "\n\n---\n\n" + (issue.body ?? "_(no body)_");
 
   const createArgs = [
     "issue",
